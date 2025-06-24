@@ -119,6 +119,54 @@ class Editor():
         picture_box.setPixmap(image)
         picture_box.show()
 
+    def gray(self):
+        self.image = self.image.convert("L")
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
+    def left(self):
+        self.image = self.image.transpose(Image.ROTATE_90)
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
+    def right(self):
+        self.image = self.image.transpose(Image.ROTATE_270)
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
+    def mirror(self):
+        self.image = self.image.transpose(Image.FLIP_LEFT_RIGHT)
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
+    def sharpen(self):
+        self.image = self.image.filter(ImageFilter.SHARPEN)
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
+    def blur(self):
+        self.image = self.image.filter(ImageFilter.BLUR)
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
+    def color(self):
+        self.image = ImageEnhance.Color(self.image).enhance(1.2)
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
+    def contrast(self):
+        self.image = ImageEnhance.Contrast(self.image).enhance(1.2)
+        self.save_image()
+        image_path = os.path.join(working_directory, self.save_folder, self.filename)
+        self.show_image(image_path)
+
 
 def displayImage():
     if file_list.currentRow() >= 0:
@@ -132,6 +180,17 @@ main = Editor()
 
 btn_folder.clicked.connect(getWorkDirectory)
 file_list.currentRowChanged.connect(displayImage)
+
+gray.clicked.connect(main.gray)
+btn_left.clicked.connect(main.left)
+btn_right.clicked.connect(main.right)
+mirror.clicked.connect(main.mirror)
+sharpness.clicked.connect(main.sharpen)
+blur.clicked.connect(main.blur)
+saturation.clicked.connect(main.color)
+contrast.clicked.connect(main.contrast)
+
+
 
 # Show/Run
 main_window.show()

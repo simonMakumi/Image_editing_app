@@ -1,6 +1,9 @@
 # Imports Modules
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QListWidget, QPushButton, QHBoxLayout, QVBoxLayout, QComboBox
 from PyQt5.QtCore import Qt
+import os
+from PyQt5.QtGui import QPixmap
+
 
 # App Settings
 app = QApplication([])
@@ -61,6 +64,20 @@ master_layout.addLayout(col2, 80)
 
 main_window.setLayout(master_layout)
 
+
+# All App Functionality
+
+working_directory = ""
+# Filter files and extesions
+def filter(files, extensions):
+    results = []
+    for file in files:
+        for ext in extensions:
+            if file.endswith(ext):
+                results.append(file)
+    return results
+
+# Choose current work directory
 
 
 # Show/Run

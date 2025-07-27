@@ -1,18 +1,18 @@
 # Imports Modules
-from PyQt5.QtWidgets import (QApplication, QWidget, QFileDialog, QLabel,
-                             QListWidget, QPushButton, QHBoxLayout, QVBoxLayout, QComboBox)
+from PyQt5.QtWidgets import (QApplication, QWidget, QFileDialog, QLabel, QListWidget,
+                             QPushButton, QHBoxLayout, QVBoxLayout, QComboBox)
 from PyQt5.QtCore import Qt
-import os
 from PyQt5.QtGui import QPixmap, QImage
+import os
 from PIL import Image, ImageFilter, ImageEnhance
 
-# App Settings
+# --- App Settings ---
 app = QApplication([])
 main_window = QWidget()
 main_window.setWindowTitle("PhotoQT")
-main_window.resize(900,700)
+main_window.resize(900, 700)
 
-# All app widgets
+# --- All app widgets ---
 btn_folder = QPushButton("Folder")
 file_list = QListWidget()
 
@@ -25,7 +25,7 @@ saturation = QPushButton("Color")
 contrast = QPushButton("Contrast")
 blur = QPushButton("Blur")
 
-# Dropdown box
+# Dropdown box for filters
 filter_box = QComboBox()
 filter_box.addItem("Original")
 filter_box.addItem("Left")
@@ -40,7 +40,7 @@ filter_box.addItem("Blur")
 picture_box = QLabel("Image will appear here")
 
 
-# App Design
+# --- App Design (Layout) ---
 master_layout = QHBoxLayout()
 
 col1 = QVBoxLayout()
@@ -58,93 +58,132 @@ col1.addWidget(saturation)
 col1.addWidget(contrast)
 col1.addWidget(blur)
 
-col2.addWidget(picture_box)
-
-master_layout.addLayout(col1, 20)
-master_layout.addLayout(col2, 80)
+col2.addWidget(picture_box) 
+master_layout.addLayout(col1, 20) # Col1 takes 20% of width
+master_layout.addLayout(col2, 80) # Col2 takes 80% of width
 
 main_window.setLayout(master_layout)
 
 
-# All App Functionality
+# --- All App Functionality ---
 
 working_directory = ""
-# Filter files and extesions
-def filter(files, extensions):
+
+# Helper function to filter files by extension
+def filter_files_by_extensions(files, extensions):
     results = []
     for file in files:
         for ext in extensions:
-            if file.endswith(ext):
+            if file.lower().endswith(ext): 
                 results.append(file)
     return results
 
-# Choose current work directory
+# Function to choose current work directory
 def getWorkDirectory():
     global working_directory
-    working_directory = QFileDialog.getExistingDirectory()
-    extensions = ['.jpg', '.jpeg', '.png', '.svg']
-    filenames = filter(os.listdir(working_directory), extensions)
-    file_list.clear()
-    for filename in filenames:
-        file_list.addItem(filename)
+    selected_directory = QFileDialog.getExistingDirectory(main_window, "Select Image Directory")
+    if selected_directory: # Ensure a directory was actually selected
+        working_directory = selected_directory
+        extensions = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.tiff']
+
+        try:
+            filenames = filter_files_by_extensions(os.listdir(working_directory), extensions)
+            file_list.clear() # Clear existing items in the list widget
+            for filename in filenames:
+                file_list.addItem(filename)
+        except Exception as e:
+            print(f"Error listing directory: {e}")
+            file_list.clear()
 
 
 class Editor():
     def __init__(self):
-        self.image = None       
-        self.original = None    
+        self.image = None
+        self.original = None
         self.filename = None
         self.save_folder = "edits/" 
 
     def load_image(self, filename):
         self.filename = filename
         fullname = os.path.join(working_directory, self.filename)
-        # Load the image and keep a copy of the original
-        self.original = Image.open(fullname)
-        self.image = self.original.copy() 
+        try:
+            self.original = Image.open(fullname)
+            self.image = self.original.copy()
+        except Exception as e:
+            print(f"Error loading image {fullname}: {e}")
+            self.image = None
+            self.original = None
+            picture_box.setText("Error loading image. Is it corrupted?")
+
 
     def save_image(self):
+        if self.image is None or self.filename is None:
+            print("No image to save.")
+            return
+
         path = os.path.join(working_directory, self.save_folder)
-        if not(os.path.exists(path) or os.path.isdir(path)):
-            os.mkdir(path)
+        if not(os.path.exists(path) and os.path.isdir(path)):
+            try:
+                os.makedirs(path)
+            except OSError as e:
+                print(f"Error creating save directory {path}: {e}")
+                return
         
         # Save the current state of self.image
         fullname = os.path.join(path, self.filename)
-        self.image.save(fullname)
-        print(f"Image saved to: {fullname}") 
+        try:
+            self.image.save(fullname)
+            print(f"Image saved to: {fullname}")
+        except Exception as e:
+            print(f"Error saving image to {fullname}: {e}")
 
-    # Displays the current PIL image object in picture_box
+
+    # Displays the current PIL image object in picture_box directly from memory
     def show_image_in_box(self):
         if self.image is None:
             picture_box.setText("No image loaded.")
             picture_box.show()
             return
 
-        # Convert PIL Image to QImage
-        # Ensure image is in a format QImage can handle (e.g., RGB, RGBA)
-        if self.image.mode == 'RGB':
-            qimage = QImage(self.image.tobytes(), self.image.width, self.image.height, QImage.Format_RGB888)
-        elif self.image.mode == 'RGBA':
-            qimage = QImage(self.image.tobytes(), self.image.width, self.image.height, QImage.Format_RGBA8888)
-        elif self.image.mode == 'L':
-            qimage = QImage(self.image.tobytes(), self.image.width, self.image.height, QImage.Format_Grayscale8)
-        else:
-            # Convert to RGB if mode is not directly supported, for broader compatibility
-            rgb_image = self.image.convert('RGB')
-            qimage = QImage(rgb_image.tobytes(), rgb_image.width, rgb_image.height, QImage.Format_RGB888)
+        
+        pil_image = self.image # Work with the current self.image
 
-        # Convert QImage to QPixmap and scale for display
+        if pil_image.mode == 'RGB':
+            qimage_format = QImage.Format_RGB888
+            bytes_per_line = pil_image.width * 3 # 3 bytes per pixel for RGB
+        elif pil_image.mode == 'RGBA':
+            qimage_format = QImage.Format_RGBA8888
+            bytes_per_line = pil_image.width * 4 # 4 bytes per pixel for RGBA
+        elif pil_image.mode == 'L': # Grayscale
+            qimage_format = QImage.Format_Grayscale8
+            bytes_per_line = pil_image.width * 1 # 1 byte per pixel for Grayscale
+        else:
+            pil_image = pil_image.convert('RGB')
+            qimage_format = QImage.Format_RGB888
+            bytes_per_line = pil_image.width * 3
+
+        # Create QImage from PIL image data (pil_image.tobytes() gives raw pixel data)
+        qimage = QImage(pil_image.tobytes(), 
+                        pil_image.width, 
+                        pil_image.height, 
+                        bytes_per_line,
+                        qimage_format)
+
         pixmap = QPixmap.fromImage(qimage)
         w, h = picture_box.width(), picture_box.height()
-        pixmap = pixmap.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = pixmap.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation) 
         
         picture_box.setPixmap(pixmap)
         picture_box.show()
+
+
+    # Each method now operates on 'self.image' and then calls 'show_image_in_box()'
+    # For now, 'save_image()' is still called here; it will be optimized for undo/redo later.
     
     def gray_filter(self):
         if self.image is None: return
         self.image = self.image.convert("L")
-        self.save_image() # For now, save immediately. Will change for undo/redo.
+        self.save_image() 
         self.show_image_in_box()
 
     def left(self):
@@ -179,28 +218,32 @@ class Editor():
 
     def color(self):
         if self.image is None: return
-        # Enhance by 1.2 (20% increase)
+        # Enhance color saturation by 20%
         self.image = ImageEnhance.Color(self.image).enhance(1.2)
         self.save_image()
         self.show_image_in_box()
 
     def contrast(self):
         if self.image is None: return
-        # Enhance by 1.2 (20% increase)
+        # Enhance contrast by 20%
         self.image = ImageEnhance.Contrast(self.image).enhance(1.2)
         self.save_image()
         self.show_image_in_box()
     
+    # Method to apply filter from the dropdown
     def apply_filter(self, filter_name):
         if self.image is None: return
         
-        # When "Original" is selected, revert self.image to original copy
+        # If "Original" is selected, revert self.image to a copy of the pristine original
         if filter_name == "Original":
             if self.original:
                 self.image = self.original.copy()
             else:
-                return
+                # If no original is loaded, do nothing
+                print("No original image to revert to.")
+                return 
         else:
+            # Mapping of filter names from QComboBox to their respective PIL operations (lambdas)
             mapping = {
                 "B/W" : lambda img: img.convert("L"),
                 "Color" : lambda img: ImageEnhance.Color(img).enhance(1.2),
@@ -214,38 +257,42 @@ class Editor():
 
             filter_function = mapping.get(filter_name)
             if filter_function:
-                # Apply filter directly to self.image
                 self.image = filter_function(self.image)
             else:
-                print(f"Warning: Filter '{filter_name}' not found.")
-                return # Don't proceed if filter is unknown
+                print(f"Warning: Filter '{filter_name}' not found in dropdown mapping.")
+                return
 
-        self.save_image() 
+        self.save_image()
         self.show_image_in_box()
 
+
+# Function called when a filter is selected from the dropdown
 def handle_filter():
-    # Ensure an image is selected in the list before applying filter
     if file_list.currentRow() >= 0:
         select_filter = filter_box.currentText()
         main.apply_filter(select_filter)
 
 
+# Function called when a new image file is selected in the file list
 def displayImage():
     if file_list.currentRow() >= 0:
         filename = file_list.currentItem().text()
         main.load_image(filename) 
         main.show_image_in_box()
 
-# Instantiate the Editor class
+
+# Instantiate the Editor class to manage image operations
 main = Editor()
 
 
-# Connect UI elements to functions/methods
+# --- Connect UI elements to their respective functions/methods ---
+
 btn_folder.clicked.connect(getWorkDirectory)
+
 file_list.currentRowChanged.connect(displayImage)
 filter_box.currentTextChanged.connect(handle_filter)
 
-# Connect buttons to the Editor methods
+# Connect individual filter buttons to their respective Editor methods
 gray.clicked.connect(main.gray_filter)
 btn_left.clicked.connect(main.left)
 btn_right.clicked.connect(main.right)
@@ -255,7 +302,5 @@ blur.clicked.connect(main.blur)
 saturation.clicked.connect(main.color)
 contrast.clicked.connect(main.contrast)
 
-
-# Show/Run
 main_window.show()
 app.exec_()

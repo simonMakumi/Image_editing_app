@@ -5,31 +5,35 @@ import os
 
 class Editor:
     def __init__(self, ui_ref):
-        # Store a reference to the PhotoQTUI instance to access its widgets and properties (e.g., picture_box, current_working_directory)
-        self.ui = ui_ref 
-        self.image = None       # The current working PIL Image object (modified state)
-        self.original = None    # A pristine copy of the original PIL Image loaded from file
-        self.filename = None    # Name of the currently loaded file
-        self.save_folder = "edits/" # Subfolder within the working directory for edited images
-
-        self.history = []        # Stores PIL Image copies of states for undo/redo
-        self.history_index = -1  # Current position in history list
+        self.ui = ui_ref
+        self.image = None
+        self.original = None
+        self.filename = None
+        self.save_folder = "edits/"
+        self.history = []
+        self.history_index = -1
 
     def load_image(self, filename):
+        print(f"\n[Editor.load_image] Attempting to load: {filename}")
         self.filename = filename
         current_dir = self.ui.current_working_directory
+        print(f"[Editor.load_image] Current working directory: '{current_dir}'")
+
         if not current_dir:
-            print("No working directory selected in UI.")
+            print("[Editor.load_image] Error: No working directory selected in UI. Cannot load image.")
             return
 
         fullname = os.path.join(current_dir, self.filename)
+        print(f"[Editor.load_image] Full image path: '{fullname}'")
         try:
+            print("[Editor.load_image] Attempting to open image with PIL...")
             self.original = Image.open(fullname)
             self.image = self.original.copy()
-            self.clear_history()            # Clear history for a new image
-            self.add_to_history(self.image) # Add initial state to history
+            self.clear_history()
+            self.add_to_history(self.image)
+            print("[Editor.load_image] Image loaded successfully and added to history.")
         except Exception as e:
-            print(f"Error loading image {fullname}: {e}")
+            print(f"[Editor.load_image] Error loading image '{fullname}': {e}")
             self.image = None
             self.original = None
             self.ui.picture_box.setText("Error loading image. Is it corrupted?")
@@ -39,18 +43,19 @@ class Editor:
         self.history_index = -1
 
     def add_to_history(self, image_state):
-        # If not at the end of history (i.e., user undid steps then applies new filter), clear future history
         if self.history_index < len(self.history) - 1:
             self.history = self.history[:self.history_index + 1]
 
-        self.history.append(image_state.copy()) # Add a copy of the current image state
+        self.history.append(image_state.copy())
         self.history_index = len(self.history) - 1
         
-        # Optional: Limit history size to prevent excessive memory usage
         max_history_size = 20
         if len(self.history) > max_history_size:
-            self.history.pop(0) # Remove oldest state
-            self.history_index -= 1 # Adjust index
+            self.history.pop(0)
+            self.history_index -= 1
+        
+        self.show_image_in_box()
+        print("[Editor.add_to_history] Image state added to history, calling show_image_in_box.")
 
     def undo(self):
         if self.history_index > 0:
@@ -89,24 +94,30 @@ class Editor:
             print(f"Error saving image to {fullname}: {e}")
 
     def show_image_in_box(self):
+        print(f"[Editor.show_image_in_box] Called. self.image is None? {self.image is None}")
         if self.image is None:
             self.ui.picture_box.setText("No image loaded.")
             self.ui.picture_box.show()
+            print("[Editor.show_image_in_box] No image available to display.")
             return
 
+        # Check QLabel dimensions at this point
+        current_label_width = self.ui.picture_box.width()
+        current_label_height = self.ui.picture_box.height()
+        print(f"[Editor.show_image_in_box] QLabel dimensions (W, H): ({current_label_width}, {current_label_height})")
+        
         pil_image = self.image
 
-        # Determine QImage format and bytesPerLine for correct display
         if pil_image.mode == 'RGB':
             qimage_format = QImage.Format_RGB888
             bytes_per_line = pil_image.width * 3
         elif pil_image.mode == 'RGBA':
             qimage_format = QImage.Format_RGBA8888
             bytes_per_line = pil_image.width * 4
-        elif pil_image.mode == 'L': # Grayscale
+        elif pil_image.mode == 'L':
             qimage_format = QImage.Format_Grayscale8
             bytes_per_line = pil_image.width * 1
-        else: # Convert other PIL modes to RGB for QImage compatibility
+        else:
             pil_image = pil_image.convert('RGB')
             qimage_format = QImage.Format_RGB888
             bytes_per_line = pil_image.width * 3
@@ -118,11 +129,13 @@ class Editor:
                         qimage_format)
 
         pixmap = QPixmap.fromImage(qimage)
-        w, h = self.ui.picture_box.width(), self.ui.picture_box.height()
-        pixmap = pixmap.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation) 
+        
+        # This is the line that should be REMOVED (or commented out)
+        # pixmap = pixmap.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation) 
         
         self.ui.picture_box.setPixmap(pixmap)
         self.ui.picture_box.show()
+        print("[Editor.show_image_in_box] Image pixmap set successfully.")
     
     def gray_filter(self):
         if self.image is None: return

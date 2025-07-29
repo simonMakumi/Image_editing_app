@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QFileDialog, QLabel, QListWidget, QPushButton, QHBoxLayout, QVBoxLayout, QComboBox
+from PyQt5.QtWidgets import QWidget, QFileDialog, QLabel, QListWidget, QPushButton, QHBoxLayout, QVBoxLayout, QComboBox, QSizePolicy
 from PyQt5.QtCore import Qt
 import os
 
@@ -6,9 +6,9 @@ class PhotoQTUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PhotoQT")
-        self.resize(900, 700)
+        # Change this line:
+        self.setFixedSize(900, 700) # Changed from self.resize(900, 700)
 
-        # Stores the currently selected folder path
         self.current_working_directory = "" 
 
         self._init_widgets()
@@ -34,7 +34,9 @@ class PhotoQTUI(QWidget):
         self.filter_box.addItems(["Original", "Left", "Right", "Mirror", "Sharpen", "B/W", "Color", "Contrast", "Blur"])
 
         self.picture_box = QLabel("Image will appear here")
-        self.picture_box.setAlignment(Qt.AlignCenter) # Center text and image within the label
+        self.picture_box.setAlignment(Qt.AlignCenter)
+        self.picture_box.setScaledContents(True)
+        self.picture_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def _init_layout(self):
         master_layout = QHBoxLayout(self)
@@ -67,11 +69,6 @@ class PhotoQTUI(QWidget):
         return [f for f in files if any(f.lower().endswith(ext) for ext in extensions)]
 
     def select_directory(self):
-        """
-        Opens a directory selection dialog, updates the internal current_working_directory,
-        and populates the file_list widget.
-        Returns True if a directory was selected and processed, False otherwise.
-        """
         selected_directory = QFileDialog.getExistingDirectory(self, "Select Image Directory")
         if selected_directory:
             self.current_working_directory = selected_directory
@@ -89,10 +86,8 @@ class PhotoQTUI(QWidget):
         return False
 
     def get_selected_filename(self):
-        """Returns the text of the currently selected item in the file list."""
         current_item = self.file_list.currentItem()
         return current_item.text() if current_item else None
 
     def get_selected_filter_name(self):
-        """Returns the currently selected text from the filter dropdown box."""
         return self.filter_box.currentText()

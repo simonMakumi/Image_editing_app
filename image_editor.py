@@ -101,7 +101,6 @@ class Editor:
             print("[Editor.show_image_in_box] No image available to display.")
             return
 
-        # Check QLabel dimensions at this point
         current_label_width = self.ui.picture_box.width()
         current_label_height = self.ui.picture_box.height()
         print(f"[Editor.show_image_in_box] QLabel dimensions (W, H): ({current_label_width}, {current_label_height})")
@@ -129,9 +128,6 @@ class Editor:
                         qimage_format)
 
         pixmap = QPixmap.fromImage(qimage)
-        
-        # This is the line that should be REMOVED (or commented out)
-        # pixmap = pixmap.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation) 
         
         self.ui.picture_box.setPixmap(pixmap)
         self.ui.picture_box.show()
@@ -202,7 +198,7 @@ class Editor:
             else:
                 print("No original image to revert to.")
                 return 
-        else:
+        else: # Apply other filters and then save
             mapping = {
                 "B/W" : lambda img: img.convert("L"),
                 "Color" : lambda img: ImageEnhance.Color(img).enhance(1.2),
@@ -220,7 +216,7 @@ class Editor:
             else:
                 print(f"Warning: Filter '{filter_name}' not found.")
                 return
+            self.save_image() # Only save if a transformation happened
 
-        self.save_image()
-        self.add_to_history(self.image)
+        self.add_to_history(self.image) # Add to history in both cases (original or filter)
         self.show_image_in_box()

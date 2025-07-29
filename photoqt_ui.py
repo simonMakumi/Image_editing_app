@@ -6,8 +6,7 @@ class PhotoQTUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PhotoQT")
-        # Change this line:
-        self.setFixedSize(900, 700) # Changed from self.resize(900, 700)
+        self.setFixedSize(900, 700) 
 
         self.current_working_directory = "" 
 
@@ -17,6 +16,7 @@ class PhotoQTUI(QWidget):
     def _init_widgets(self):
         self.btn_folder = QPushButton("Folder")
         self.file_list = QListWidget()
+        self.file_list.setMinimumWidth(150) # ADDED: Ensure the file list (and thus col1) has a minimum width
 
         self.btn_left = QPushButton("Left")
         self.btn_right = QPushButton("Right")

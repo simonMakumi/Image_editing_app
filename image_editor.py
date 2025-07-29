@@ -218,5 +218,5 @@ class Editor:
                 return
             self.save_image() # Only save if a transformation happened
 
-        self.add_to_history(self.image) # Add to history in both cases (original or filter)
+        self.add_to_history(self.image)
         self.show_image_in_box()

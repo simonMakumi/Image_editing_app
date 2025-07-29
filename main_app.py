@@ -1,58 +1,73 @@
+import sys
 from PyQt5.QtWidgets import QApplication
-import photoqt_ui
-import image_editor
+from photoqt_ui import PhotoQTUI
+from image_editor import Editor
+import themes
 
-def main():
-    app = QApplication([])
+class PhotoQTApp(QApplication):
+    def __init__(self, argv):
+        super().__init__(argv)
+        self.ui = PhotoQTUI()
+        self.editor = Editor(self.ui)
+        
+        self._connect_signals_slots()
+        
+        # Apply the default theme
+        self.ui.apply_theme("Dark Theme") 
+        # Set the QComboBox to reflect the initial theme
+        self.ui.theme_box.setCurrentText("Dark Theme")
+        
+        # Connect the theme_box's signal to the handler
+        self.ui.theme_box.currentIndexChanged.connect(self._handle_theme_selection)
 
-    # Instantiate the UI (main window and all its widgets)
-    ui = photoqt_ui.PhotoQTUI()
-    # Instantiate the Editor, passing it a reference to the UI object
-    # This allows the Editor to access UI elements like picture_box and current_working_directory
-    editor = image_editor.Editor(ui_ref=ui) 
+        self.ui.show()
 
-    # --- Connect UI signals to Editor methods ---
+    def _connect_signals_slots(self):
+        self.ui.btn_folder.clicked.connect(self._handle_folder_selection)
+        self.ui.file_list.itemClicked.connect(self._handle_file_selection)
+        
+        # Connect filter buttons
+        self.ui.btn_left.clicked.connect(self.editor.left)
+        self.ui.btn_right.clicked.connect(self.editor.right)
+        self.ui.mirror.clicked.connect(self.editor.mirror)
+        self.ui.sharpness.clicked.connect(self.editor.sharpen)
+        self.ui.gray.clicked.connect(self.editor.gray_filter)
+        self.ui.saturation.clicked.connect(self.editor.color)
+        self.ui.contrast.clicked.connect(self.editor.contrast)
+        self.ui.blur.clicked.connect(self.editor.blur)
 
-    # Handler for the "Folder" button click
-    def handle_folder_selection():
-        # Call the UI method to open the dialog and list files.
-        # The UI object itself stores the selected directory.
-        ui.select_directory() 
+        # Connect Undo/Redo
+        self.ui.btn_undo.clicked.connect(self.editor.undo)
+        self.ui.btn_redo.clicked.connect(self.editor.redo)
 
-    # Handler for when a different file is selected in the file list
-    def handle_file_selection():
-        filename = ui.get_selected_filename()
+        # Connect ComboBox filter application
+        self.ui.filter_box.currentTextChanged.connect(self.editor.apply_filter)
+        
+    def _handle_folder_selection(self):
+        success = self.ui.select_directory()
+        if success and self.ui.file_list.count() > 0:
+            self.editor.image = None
+            self.editor.original = None
+            self.editor.clear_history()
+            self.ui.picture_box.clear()
+            self.ui.picture_box.setText("Select an image from the list.") 
+            
+            # Automatically select the first file if directory selection was successful 
+            # and there are files to display.
+            self.ui.file_list.setCurrentRow(0)
+            # Trigger file selection handler for the first item
+            self._handle_file_selection(self.ui.file_list.currentItem())
+
+    def _handle_file_selection(self, item):
+        filename = item.text()
         if filename:
-            editor.load_image(filename)
-            # The image is automatically shown by editor.load_image -> editor.add_to_history -> editor.show_image_in_box
+            self.editor.load_image(filename)
+            self.ui.filter_box.setCurrentText("Original")
 
-    # Handler for when a filter is selected from the dropdown
-    def handle_filter_selection():
-        selected_filter = ui.get_selected_filter_name()
-        if selected_filter:
-            editor.apply_filter(selected_filter)
-
-    # Connect buttons and dropdowns to their handlers/editor methods
-    ui.btn_folder.clicked.connect(handle_folder_selection)
-    ui.file_list.currentRowChanged.connect(handle_file_selection)
-    ui.filter_box.currentTextChanged.connect(handle_filter_selection)
-
-    ui.btn_undo.clicked.connect(editor.undo)
-    ui.btn_redo.clicked.connect(editor.redo)
-
-    ui.gray.clicked.connect(editor.gray_filter)
-    ui.btn_left.clicked.connect(editor.left)
-    ui.btn_right.clicked.connect(editor.right)
-    ui.mirror.clicked.connect(editor.mirror)
-    ui.sharpness.clicked.connect(editor.sharpen)
-    ui.blur.clicked.connect(editor.blur)
-    ui.saturation.clicked.connect(editor.color)
-    ui.contrast.clicked.connect(editor.contrast)
-
-    # Show the main application window
-    ui.show() 
-    # Start the PyQt event loop
-    app.exec_()
+    def _handle_theme_selection(self):
+        selected_theme = self.ui.get_selected_theme_name()
+        self.ui.apply_theme(selected_theme)
 
 if __name__ == "__main__":
-    main()
+    app = PhotoQTApp(sys.argv)
+    sys.exit(app.exec_())

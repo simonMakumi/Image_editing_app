@@ -1,6 +1,9 @@
-from PyQt5.QtWidgets import QWidget, QFileDialog, QLabel, QListWidget, QPushButton, QHBoxLayout, QVBoxLayout, QComboBox, QSizePolicy
+# photoqt_ui.py
+from PyQt5.QtWidgets import (QWidget, QFileDialog, QLabel, QListWidget, QPushButton,
+                             QHBoxLayout, QVBoxLayout, QComboBox, QSizePolicy, QApplication)
 from PyQt5.QtCore import Qt
 import os
+import themes
 
 class PhotoQTUI(QWidget):
     def __init__(self):
@@ -16,7 +19,7 @@ class PhotoQTUI(QWidget):
     def _init_widgets(self):
         self.btn_folder = QPushButton("Folder")
         self.file_list = QListWidget()
-        self.file_list.setMinimumWidth(150) # ADDED: Ensure the file list (and thus col1) has a minimum width
+        self.file_list.setMinimumWidth(150) 
 
         self.btn_left = QPushButton("Left")
         self.btn_right = QPushButton("Right")
@@ -33,7 +36,11 @@ class PhotoQTUI(QWidget):
         self.filter_box = QComboBox()
         self.filter_box.addItems(["Original", "Left", "Right", "Mirror", "Sharpen", "B/W", "Color", "Contrast", "Blur"])
 
+        self.theme_box = QComboBox()
+        self.theme_box.addItems(["Dark Theme", "Light Theme"])
+        
         self.picture_box = QLabel("Image will appear here")
+        self.picture_box.setObjectName("picture_box")
         self.picture_box.setAlignment(Qt.AlignCenter)
         self.picture_box.setScaledContents(True)
         self.picture_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -47,6 +54,7 @@ class PhotoQTUI(QWidget):
         col1.addWidget(self.btn_folder)
         col1.addWidget(self.file_list)
         col1.addWidget(self.filter_box)
+        col1.addWidget(self.theme_box)
 
         col1.addWidget(self.btn_undo)
         col1.addWidget(self.btn_redo)
@@ -64,6 +72,18 @@ class PhotoQTUI(QWidget):
 
         master_layout.addLayout(col1, 20)
         master_layout.addLayout(col2, 80)
+
+    def apply_theme(self, theme_name):
+        app = QApplication.instance()
+        if app:
+            if theme_name == "Dark Theme":
+                app.setStyleSheet(themes.DARK_THEME_QSS)
+            elif theme_name == "Light Theme":
+                app.setStyleSheet(themes.LIGHT_THEME_QSS)
+            else:
+                app.setStyleSheet("") 
+        else:
+            print("Error: QApplication instance not found to apply theme.")
 
     def _filter_files_by_extensions(self, files, extensions):
         return [f for f in files if any(f.lower().endswith(ext) for ext in extensions)]
@@ -91,3 +111,6 @@ class PhotoQTUI(QWidget):
 
     def get_selected_filter_name(self):
         return self.filter_box.currentText()
+
+    def get_selected_theme_name(self):
+        return self.theme_box.currentText()

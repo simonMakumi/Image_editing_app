@@ -1,133 +1,56 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog, QLabel, QListWidget, QPushButton, QHBoxLayout, QVBoxLayout, QComboBox
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QImage
-import os
 from PIL import Image, ImageFilter, ImageEnhance
+import os
 
-app = QApplication([])
-main_window = QWidget()
-main_window.setWindowTitle("PhotoQT")
-main_window.resize(900, 700)
+class Editor:
+    def __init__(self, ui_ref):
+        # Store a reference to the PhotoQTUI instance to access its widgets and properties (e.g., picture_box, current_working_directory)
+        self.ui = ui_ref 
+        self.image = None       # The current working PIL Image object (modified state)
+        self.original = None    # A pristine copy of the original PIL Image loaded from file
+        self.filename = None    # Name of the currently loaded file
+        self.save_folder = "edits/" # Subfolder within the working directory for edited images
 
-btn_folder = QPushButton("Folder")
-file_list = QListWidget()
-
-btn_left = QPushButton("Left")
-btn_right = QPushButton("Right")
-mirror = QPushButton("Mirror")
-sharpness = QPushButton("Sharpen")
-gray = QPushButton("B/W")
-saturation = QPushButton("Color")
-contrast = QPushButton("Contrast")
-blur = QPushButton("Blur")
-
-btn_undo = QPushButton("Undo")
-btn_redo = QPushButton("Redo")
-
-filter_box = QComboBox()
-filter_box.addItem("Original")
-filter_box.addItem("Left")
-filter_box.addItem("Right")
-filter_box.addItem("Mirror")
-filter_box.addItem("Sharpen")
-filter_box.addItem("B/W")
-filter_box.addItem("Color")
-filter_box.addItem("Contrast")
-filter_box.addItem("Blur")
-
-picture_box = QLabel("Image will appear here")
-
-master_layout = QHBoxLayout()
-
-col1 = QVBoxLayout()
-col2 = QVBoxLayout()
-
-col1.addWidget(btn_folder)
-col1.addWidget(file_list)
-col1.addWidget(filter_box)
-
-col1.addWidget(btn_undo)
-col1.addWidget(btn_redo)
-
-col1.addWidget(btn_left)
-col1.addWidget(btn_right)
-col1.addWidget(mirror)
-col1.addWidget(sharpness)
-col1.addWidget(gray)
-col1.addWidget(saturation)
-col1.addWidget(contrast)
-col1.addWidget(blur)
-
-col2.addWidget(picture_box)
-
-master_layout.addLayout(col1, 20)
-master_layout.addLayout(col2, 80)
-
-main_window.setLayout(master_layout)
-
-working_directory = ""
-
-def filter_files_by_extensions(files, extensions):
-    results = []
-    for file in files:
-        for ext in extensions:
-            if file.lower().endswith(ext):
-                results.append(file)
-    return results
-
-def getWorkDirectory():
-    global working_directory
-    selected_directory = QFileDialog.getExistingDirectory(main_window, "Select Image Directory")
-    if selected_directory:
-        working_directory = selected_directory
-        extensions = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.tiff']
-        try:
-            filenames = filter_files_by_extensions(os.listdir(working_directory), extensions)
-            file_list.clear()
-            for filename in filenames:
-                file_list.addItem(filename)
-        except Exception as e:
-            print(f"Error listing directory: {e}")
-            file_list.clear()
-
-class Editor():
-    def __init__(self):
-        self.image = None
-        self.original = None
-        self.filename = None
-        self.save_folder = "edits/"
-        self.history = []
-        self.history_index = -1
+        self.history = []        # Stores PIL Image copies of states for undo/redo
+        self.history_index = -1  # Current position in history list
 
     def load_image(self, filename):
         self.filename = filename
-        fullname = os.path.join(working_directory, self.filename)
+        current_dir = self.ui.current_working_directory
+        if not current_dir:
+            print("No working directory selected in UI.")
+            return
+
+        fullname = os.path.join(current_dir, self.filename)
         try:
             self.original = Image.open(fullname)
             self.image = self.original.copy()
-            self.clear_history()
-            self.add_to_history(self.image)
+            self.clear_history()            # Clear history for a new image
+            self.add_to_history(self.image) # Add initial state to history
         except Exception as e:
             print(f"Error loading image {fullname}: {e}")
             self.image = None
             self.original = None
-            picture_box.setText("Error loading image. Is it corrupted?")
+            self.ui.picture_box.setText("Error loading image. Is it corrupted?")
 
     def clear_history(self):
         self.history = []
         self.history_index = -1
 
     def add_to_history(self, image_state):
+        # If not at the end of history (i.e., user undid steps then applies new filter), clear future history
         if self.history_index < len(self.history) - 1:
             self.history = self.history[:self.history_index + 1]
 
-        self.history.append(image_state.copy())
+        self.history.append(image_state.copy()) # Add a copy of the current image state
         self.history_index = len(self.history) - 1
         
+        # Optional: Limit history size to prevent excessive memory usage
         max_history_size = 20
         if len(self.history) > max_history_size:
-            self.history.pop(0)
-            self.history_index -= 1
+            self.history.pop(0) # Remove oldest state
+            self.history_index -= 1 # Adjust index
 
     def undo(self):
         if self.history_index > 0:
@@ -150,7 +73,7 @@ class Editor():
             print("No image to save.")
             return
 
-        path = os.path.join(working_directory, self.save_folder)
+        path = os.path.join(self.ui.current_working_directory, self.save_folder)
         if not(os.path.exists(path) and os.path.isdir(path)):
             try:
                 os.makedirs(path)
@@ -167,22 +90,23 @@ class Editor():
 
     def show_image_in_box(self):
         if self.image is None:
-            picture_box.setText("No image loaded.")
-            picture_box.show()
+            self.ui.picture_box.setText("No image loaded.")
+            self.ui.picture_box.show()
             return
 
         pil_image = self.image
 
+        # Determine QImage format and bytesPerLine for correct display
         if pil_image.mode == 'RGB':
             qimage_format = QImage.Format_RGB888
             bytes_per_line = pil_image.width * 3
         elif pil_image.mode == 'RGBA':
             qimage_format = QImage.Format_RGBA8888
             bytes_per_line = pil_image.width * 4
-        elif pil_image.mode == 'L':
+        elif pil_image.mode == 'L': # Grayscale
             qimage_format = QImage.Format_Grayscale8
             bytes_per_line = pil_image.width * 1
-        else:
+        else: # Convert other PIL modes to RGB for QImage compatibility
             pil_image = pil_image.convert('RGB')
             qimage_format = QImage.Format_RGB888
             bytes_per_line = pil_image.width * 3
@@ -194,11 +118,11 @@ class Editor():
                         qimage_format)
 
         pixmap = QPixmap.fromImage(qimage)
-        w, h = picture_box.width(), picture_box.height()
+        w, h = self.ui.picture_box.width(), self.ui.picture_box.height()
         pixmap = pixmap.scaled(w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation) 
         
-        picture_box.setPixmap(pixmap)
-        picture_box.show()
+        self.ui.picture_box.setPixmap(pixmap)
+        self.ui.picture_box.show()
     
     def gray_filter(self):
         if self.image is None: return
@@ -287,35 +211,3 @@ class Editor():
         self.save_image()
         self.add_to_history(self.image)
         self.show_image_in_box()
-
-def handle_filter():
-    if file_list.currentRow() >= 0:
-        select_filter = filter_box.currentText()
-        main.apply_filter(select_filter)
-
-def displayImage():
-    if file_list.currentRow() >= 0:
-        filename = file_list.currentItem().text()
-        main.load_image(filename)
-        main.show_image_in_box()
-
-main = Editor()
-
-btn_folder.clicked.connect(getWorkDirectory)
-file_list.currentRowChanged.connect(displayImage)
-filter_box.currentTextChanged.connect(handle_filter)
-
-btn_undo.clicked.connect(main.undo)
-btn_redo.clicked.connect(main.redo)
-
-gray.clicked.connect(main.gray_filter)
-btn_left.clicked.connect(main.left)
-btn_right.clicked.connect(main.right)
-mirror.clicked.connect(main.mirror)
-sharpness.clicked.connect(main.sharpen)
-blur.clicked.connect(main.blur)
-saturation.clicked.connect(main.color)
-contrast.clicked.connect(main.contrast)
-
-main_window.show()
-app.exec_()

@@ -34,6 +34,7 @@ class PhotoQTUI(QWidget):
         self.btn_redo = QPushButton("Redo")
 
         self.btn_save_as = QPushButton("Save As...") 
+        self.btn_resize = QPushButton("Resize")
 
         self.filter_box = QComboBox()
         self.filter_box.addItems(["Original", "Left", "Right", "Mirror", "Sharpen", "B/W", "Color", "Contrast", "Blur"])
@@ -74,7 +75,8 @@ class PhotoQTUI(QWidget):
         col1.addWidget(self.filter_param_slider)
 
         col1.addWidget(self.theme_box) 
-        col1.addWidget(self.btn_save_as) 
+        col1.addWidget(self.btn_save_as)
+        col1.addWidget(self.btn_resize)
 
         col1.addWidget(self.btn_undo)
         col1.addWidget(self.btn_redo)

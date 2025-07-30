@@ -228,3 +228,25 @@ class Editor:
         # Scale 0-100 to a blur radius, e.g., 0-10
         radius = value / 10.0
         return image_to_process.filter(ImageFilter.GaussianBlur(radius))
+    
+    def resize_image(self, new_width, new_height):
+        if self.image is None:
+            print("No image loaded to resize.")
+            return
+
+        try:
+            new_width = max(1, int(new_width))
+            new_height = max(1, int(new_height))
+
+            print(f"Resizing image from {self.image.size} to {new_width}x{new_height}")
+            self.image = self.image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            self.add_to_history(self.image) # Add resized state to history
+            self.show_image_in_box() # Update the UI
+            self.save_image() # Auto-save the resized image
+            print("Image resized successfully.")
+
+        except ValueError:
+            print("Invalid dimensions provided for resizing. Please enter integers.")
+        except Exception as e:
+            print(f"Error during image resizing: {e}")

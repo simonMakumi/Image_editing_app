@@ -1,7 +1,9 @@
 # main_app.py
 import sys
 import os
-from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog 
+from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog, QDialog
+
+from resize_dialog import ResizeDialog
 from photoqt_ui import PhotoQTUI
 from image_editor import Editor
 
@@ -32,6 +34,8 @@ class MainAppController(QWidget):
 
         # Save Operations
         self.ui.btn_save_as.clicked.connect(self.save_image_as_dialog)
+
+        self.ui.btn_resize.clicked.connect(self.open_resize_dialog)
 
     def select_directory_and_load(self):
         if self.ui.select_directory():
@@ -90,6 +94,23 @@ class MainAppController(QWidget):
             self.editor.save_image(path=file_path)
         else:
             print("Save As operation cancelled by user.")
+
+    def open_resize_dialog(self):
+        if self.editor.image is None:
+            print("No image loaded to resize.")
+            return
+
+        current_width, current_height = self.editor.image.size
+        print(f"Current image dimensions: {current_width}x{current_height}")
+
+        dialog = ResizeDialog(current_width, current_height, self) # Pass current dimensions and self as parent
+        if dialog.exec_() == QDialog.Accepted:
+            new_width, new_height = dialog.get_dimensions()
+            print(f"User wants to resize to: {new_width}x{new_height}")
+            # Call the editor's resize method
+            self.editor.resize_image(new_width, new_height)
+        else:
+            print("Resize operation cancelled.")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

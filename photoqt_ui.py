@@ -1,6 +1,5 @@
-# photoqt_ui.py
 from PyQt5.QtWidgets import (QWidget, QFileDialog, QLabel, QListWidget, QPushButton, QHBoxLayout, 
-                             QVBoxLayout, QComboBox, QSizePolicy, QApplication, QSlider)
+                             QVBoxLayout, QComboBox, QSizePolicy, QApplication, QSlider, QMessageBox)
 from PyQt5.QtCore import Qt
 import os
 import themes
@@ -21,20 +20,12 @@ class PhotoQTUI(QWidget):
         self.file_list = QListWidget()
         self.file_list.setMinimumWidth(150) 
 
-        self.btn_left = QPushButton("Left")
-        self.btn_right = QPushButton("Right")
-        self.mirror = QPushButton("Mirror")
-        self.sharpness = QPushButton("Sharpen")
-        self.gray = QPushButton("B/W")
-        self.saturation = QPushButton("Color")
-        self.contrast = QPushButton("Contrast")
-        self.blur = QPushButton("Blur")
-
         self.btn_undo = QPushButton("Undo")
         self.btn_redo = QPushButton("Redo")
 
         self.btn_save_as = QPushButton("Save As...") 
         self.btn_resize = QPushButton("Resize")
+        self.btn_crop = QPushButton("Crop")
 
         self.filter_box = QComboBox()
         self.filter_box.addItems(["Original", "Left", "Right", "Mirror", "Sharpen", "B/W", "Color", "Contrast", "Blur"])
@@ -77,6 +68,7 @@ class PhotoQTUI(QWidget):
         col1.addWidget(self.theme_box) 
         col1.addWidget(self.btn_save_as)
         col1.addWidget(self.btn_resize)
+        col1.addWidget(self.btn_crop)
 
         col1.addWidget(self.btn_undo)
         col1.addWidget(self.btn_redo)
@@ -88,14 +80,20 @@ class PhotoQTUI(QWidget):
     def apply_theme(self, theme_name):
         app = QApplication.instance() 
         if app:
-            if theme_name == "Dark Theme":
-                app.setStyleSheet(themes.DARK_THEME_QSS)
-            elif theme_name == "Light Theme":
-                app.setStyleSheet(themes.LIGHT_THEME_QSS)
-            else:
-                app.setStyleSheet("")
+            try:
+                if theme_name == "Dark Theme":
+                    app.setStyleSheet(themes.DARK_THEME_QSS)
+                elif theme_name == "Light Theme":
+                    app.setStyleSheet(themes.LIGHT_THEME_QSS)
+                else:
+                    app.setStyleSheet("")
+            except Exception as e:
+                QMessageBox.critical(self, "Theme Error", f"Failed to apply theme: {e}")
+                print(f"Error applying theme: {e}")
         else:
             print("Error: QApplication instance not found to apply theme.")
+            QMessageBox.critical(self, "Application Error", "Could not apply theme: Application instance not found.")
+
 
     def _filter_files_by_extensions(self, files, extensions):
         return [f for f in files if any(f.lower().endswith(ext) for ext in extensions)]
@@ -108,14 +106,26 @@ class PhotoQTUI(QWidget):
             try:
                 filenames = self._filter_files_by_extensions(os.listdir(self.current_working_directory), extensions)
                 self.file_list.clear()
+                if not filenames:
+                    QMessageBox.information(self, "No Images Found", "No supported image files found in the selected directory.")
+                    return False # Indicate no images were loaded
                 for filename in filenames:
                     self.file_list.addItem(filename)
                 return True
+            except PermissionError:
+                QMessageBox.critical(self, "Permission Denied", f"Permission denied to access directory: {self.current_working_directory}")
+                self.file_list.clear()
+                return False
+            except FileNotFoundError:
+                QMessageBox.critical(self, "Directory Not Found", f"The selected directory does not exist: {self.current_working_directory}")
+                self.file_list.clear()
+                return False
             except Exception as e:
+                QMessageBox.critical(self, "Error Listing Directory", f"An unexpected error occurred while listing directory: {e}")
                 print(f"Error listing directory: {e}")
                 self.file_list.clear()
                 return False
-        return False
+        return False 
 
     def get_selected_filename(self):
         current_item = self.file_list.currentItem()

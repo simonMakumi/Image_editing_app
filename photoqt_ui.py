@@ -33,12 +33,12 @@ class PhotoQTUI(QWidget):
         self.btn_undo = QPushButton("Undo")
         self.btn_redo = QPushButton("Redo")
 
+        self.btn_save_as = QPushButton("Save As...") 
+
         self.filter_box = QComboBox()
-        # Ensure 'Original' is the first item and the default selection
         self.filter_box.addItems(["Original", "Left", "Right", "Mirror", "Sharpen", "B/W", "Color", "Contrast", "Blur"])
         self.filter_box.setCurrentText("Original")
         
-
         self.theme_box = QComboBox()
         self.theme_box.addItems(["Dark Theme", "Light Theme"])
         
@@ -56,7 +56,6 @@ class PhotoQTUI(QWidget):
         self.filter_param_slider.setTickPosition(QSlider.TicksBelow)
         self.filter_param_slider.setTickInterval(10)
         
-        # Initially hide these widgets
         self.filter_param_label.setVisible(False)
         self.filter_param_slider.setVisible(False)
 
@@ -75,6 +74,7 @@ class PhotoQTUI(QWidget):
         col1.addWidget(self.filter_param_slider)
 
         col1.addWidget(self.theme_box) 
+        col1.addWidget(self.btn_save_as) 
 
         col1.addWidget(self.btn_undo)
         col1.addWidget(self.btn_redo)

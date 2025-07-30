@@ -1,102 +1,97 @@
+# main_app.py
 import sys
-from PyQt5.QtWidgets import QApplication
+import os
+from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog 
 from photoqt_ui import PhotoQTUI
 from image_editor import Editor
-import themes
 
-class PhotoQTApp(QApplication):
-    def __init__(self, argv):
-        super().__init__(argv)
+class MainAppController(QWidget):
+    def __init__(self):
+        super().__init__()
         self.ui = PhotoQTUI()
         self.editor = Editor(self.ui)
-        
-        # Define filters that will use the intensity slider
-        self.filters_with_parameters = ["Sharpen", "Color", "Contrast", "Blur"]
-
-        self._connect_signals_slots()
-        
-        # Apply initial theme and connect theme selector
-        self.ui.apply_theme("Dark Theme") 
-        self.ui.theme_box.setCurrentText("Dark Theme")
-        self.ui.theme_box.currentIndexChanged.connect(self._handle_theme_selection)
-
-        # Initial state for filter parameter widgets
-        self._update_filter_param_visibility("Original")
-
+        self.setup_connections()
         self.ui.show()
 
-    def _connect_signals_slots(self):
-        self.ui.btn_folder.clicked.connect(self._handle_folder_selection)
-        self.ui.file_list.itemClicked.connect(self._handle_file_selection)
+    def setup_connections(self):
+        # File/Directory Operations
+        self.ui.btn_folder.clicked.connect(self.select_directory_and_load)
+        self.ui.file_list.currentItemChanged.connect(self.load_selected_image)
         
-        self.ui.filter_box.currentTextChanged.connect(self._handle_filter_selection)
+        # Filter Operations
+        self.ui.filter_box.currentTextChanged.connect(self.handle_filter_selection)
+        self.ui.filter_param_slider.valueChanged.connect(self.handle_slider_change)
+        self.ui.filter_param_slider.sliderReleased.connect(self.handle_slider_release)
         
-        self.ui.filter_param_slider.valueChanged.connect(self._handle_slider_value_change)
-
-        # Connect Undo/Redo
+        # Undo/Redo
         self.ui.btn_undo.clicked.connect(self.editor.undo)
         self.ui.btn_redo.clicked.connect(self.editor.redo)
-
         
-    def _handle_folder_selection(self):
-        success = self.ui.select_directory()
-        if success and self.ui.file_list.count() > 0:
-            self.editor.image = None
-            self.editor.original = None
-            self.editor.clear_history()
-            self.ui.picture_box.clear() 
-            self.ui.picture_box.setText("Select an image from the list.")
-            
-            self.ui.file_list.setCurrentRow(0)
-            # Trigger file selection handler for the first item
-            self._handle_file_selection(self.ui.file_list.currentItem())
-            # Reset filter to original and hide slider when new folder is selected
-            self.ui.filter_box.setCurrentText("Original")
-            self._update_filter_param_visibility("Original")
+        # Theme Selection
+        self.ui.theme_box.currentTextChanged.connect(self.ui.apply_theme)
 
+        # Save Operations
+        self.ui.btn_save_as.clicked.connect(self.save_image_as_dialog)
 
-    def _handle_file_selection(self, item):
-        filename = item.text()
-        if filename:
+    def select_directory_and_load(self):
+        if self.ui.select_directory():
+            if self.ui.file_list.count() > 0:
+                self.ui.file_list.setCurrentRow(0) # Selects first item, which triggers load_selected_image
+            else:
+                self.editor.image = None
+                self.ui.picture_box.clear()
+                self.ui.picture_box.setText("No images found in this folder.")
+                self.editor.clear_history()
+
+    def load_selected_image(self, current_item):
+        if current_item:
+            filename = current_item.text()
+            # Editor handles constructing the full path
             self.editor.load_image(filename)
-            # Reset filter box to "Original" after new image load
-            self.ui.filter_box.setCurrentText("Original")
-            # Ensure slider is hidden for "Original" filter
-            self._update_filter_param_visibility("Original")
 
-
-    # Handler for theme selection
-    def _handle_theme_selection(self):
-        selected_theme = self.ui.get_selected_theme_name()
-        self.ui.apply_theme(selected_theme)
-
-    # Handler for filter ComboBox selection
-    def _handle_filter_selection(self, filter_name):
-        self._update_filter_param_visibility(filter_name)
-        slider_value = self.ui.filter_param_slider.value()
-        self.editor.apply_filter(filter_name, slider_value)
-
-    # Handler for slider value changes
-    def _handle_slider_value_change(self, value):
-        current_filter = self.ui.filter_box.currentText()
-        if current_filter in self.filters_with_parameters:
-            self.editor.apply_filter(current_filter, value, is_slider_change=True)
+    def handle_filter_selection(self, filter_name):
+        if filter_name in self.editor.filters_with_parameters:
+            self.ui.filter_param_slider.setValue(50) # Reset slider to default
+            self.ui.filter_param_label.setVisible(True)
+            self.ui.filter_param_slider.setVisible(True)
+            self.editor.apply_filter(filter_name, slider_value=50, is_slider_change=False) 
         else:
-            self.editor.apply_filter(current_filter, is_slider_change=True)
+            self.ui.filter_param_label.setVisible(False)
+            self.ui.filter_param_slider.setVisible(False)
+            self.editor.apply_filter(filter_name, is_slider_change=False)
 
+    def handle_slider_change(self, value):
+        current_filter = self.ui.get_selected_filter_name()
+        if current_filter in self.editor.filters_with_parameters:
+            self.editor.apply_filter(current_filter, slider_value=value, is_slider_change=True)
 
-    # Method to control visibility of filter parameter widgets
-    def _update_filter_param_visibility(self, current_filter_name):
-        should_be_visible = current_filter_name in self.filters_with_parameters
-        self.ui.filter_param_label.setVisible(should_be_visible)
-        self.ui.filter_param_slider.setVisible(should_be_visible)
+    def handle_slider_release(self):
+        current_filter = self.ui.get_selected_filter_name()
+        # Finalize filter application when slider is released
+        if current_filter in self.editor.filters_with_parameters:
+            self.editor.apply_filter(current_filter, slider_value=self.ui.filter_param_slider.value(), is_slider_change=False)
 
-        if should_be_visible:
-            self.ui.filter_param_slider.blockSignals(True) # Block signals to prevent immediate re-trigger
-            self.ui.filter_param_slider.setValue(50) # Reset to default value
-            self.ui.filter_param_slider.blockSignals(False) # Unblock signals
+    def save_image_as_dialog(self):
+        if self.editor.image is None:
+            print("No image to save.")
+            return
+
+        # Suggest an initial filename and path in the 'edits' directory
+        initial_filename = "edited_" + (self.editor.current_filename if self.editor.current_filename else "image.png")
+        initial_save_path = os.path.join(self.editor.edits_directory, initial_filename)
+
+        # Open file dialog for saving
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Image As", initial_save_path, 
+                                                 "PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;All Files (*.*)")
         
+        if file_path:
+            print(f"User selected save path: {file_path}")
+            # Call the editor's save method, which handles format conversion if necessary
+            self.editor.save_image(path=file_path)
+        else:
+            print("Save As operation cancelled by user.")
 
-if __name__ == "__main__":
-    app = PhotoQTApp(sys.argv)
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    main_app_controller = MainAppController() # Corrected to MainAppController
     sys.exit(app.exec_())

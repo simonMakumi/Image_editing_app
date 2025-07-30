@@ -1,6 +1,6 @@
 # photoqt_ui.py
-from PyQt5.QtWidgets import (QWidget, QFileDialog, QLabel, QListWidget, QPushButton,
-                             QHBoxLayout, QVBoxLayout, QComboBox, QSizePolicy, QApplication)
+from PyQt5.QtWidgets import (QWidget, QFileDialog, QLabel, QListWidget, QPushButton, QHBoxLayout, 
+                             QVBoxLayout, QComboBox, QSizePolicy, QApplication, QSlider)
 from PyQt5.QtCore import Qt
 import os
 import themes
@@ -34,7 +34,10 @@ class PhotoQTUI(QWidget):
         self.btn_redo = QPushButton("Redo")
 
         self.filter_box = QComboBox()
+        # Ensure 'Original' is the first item and the default selection
         self.filter_box.addItems(["Original", "Left", "Right", "Mirror", "Sharpen", "B/W", "Color", "Contrast", "Blur"])
+        self.filter_box.setCurrentText("Original")
+        
 
         self.theme_box = QComboBox()
         self.theme_box.addItems(["Dark Theme", "Light Theme"])
@@ -45,6 +48,19 @@ class PhotoQTUI(QWidget):
         self.picture_box.setScaledContents(True)
         self.picture_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
+        self.filter_param_label = QLabel("Filter Intensity:")
+        self.filter_param_label.setAlignment(Qt.AlignCenter)
+        self.filter_param_slider = QSlider(Qt.Horizontal)
+        self.filter_param_slider.setRange(0, 100)
+        self.filter_param_slider.setValue(50) 
+        self.filter_param_slider.setTickPosition(QSlider.TicksBelow)
+        self.filter_param_slider.setTickInterval(10)
+        
+        # Initially hide these widgets
+        self.filter_param_label.setVisible(False)
+        self.filter_param_slider.setVisible(False)
+
+
     def _init_layout(self):
         master_layout = QHBoxLayout(self)
 
@@ -54,34 +70,28 @@ class PhotoQTUI(QWidget):
         col1.addWidget(self.btn_folder)
         col1.addWidget(self.file_list)
         col1.addWidget(self.filter_box)
-        col1.addWidget(self.theme_box)
+        
+        col1.addWidget(self.filter_param_label)
+        col1.addWidget(self.filter_param_slider)
+
+        col1.addWidget(self.theme_box) 
 
         col1.addWidget(self.btn_undo)
         col1.addWidget(self.btn_redo)
-
-        col1.addWidget(self.btn_left)
-        col1.addWidget(self.btn_right)
-        col1.addWidget(self.mirror)
-        col1.addWidget(self.sharpness)
-        col1.addWidget(self.gray)
-        col1.addWidget(self.saturation)
-        col1.addWidget(self.contrast)
-        col1.addWidget(self.blur)
-
         col2.addWidget(self.picture_box)
 
         master_layout.addLayout(col1, 20)
         master_layout.addLayout(col2, 80)
 
     def apply_theme(self, theme_name):
-        app = QApplication.instance()
+        app = QApplication.instance() 
         if app:
             if theme_name == "Dark Theme":
                 app.setStyleSheet(themes.DARK_THEME_QSS)
             elif theme_name == "Light Theme":
                 app.setStyleSheet(themes.LIGHT_THEME_QSS)
             else:
-                app.setStyleSheet("") 
+                app.setStyleSheet("")
         else:
             print("Error: QApplication instance not found to apply theme.")
 
@@ -112,5 +122,6 @@ class PhotoQTUI(QWidget):
     def get_selected_filter_name(self):
         return self.filter_box.currentText()
 
+    # Helper method for main_app to get selected theme
     def get_selected_theme_name(self):
         return self.theme_box.currentText()
